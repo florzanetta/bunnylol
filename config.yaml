@@ -1,15 +1,12 @@
-ghs:
-  url: https://github.com/search?q={}
-  name: Github Search
 bunny:
   name: bunnylol
-  url: http://localhost:8000/list
+  url: http://localhost:8000/
 g:
   name: Google
   url: https://www.google.com/search?q={}
 gh:
   name: Github
   url: https://github.com/{}
-add:
-  url: http://localhost:8000/add-site
-  name: bunnylol add
+ghs:
+  url: https://github.com/search?q={}
+  name: Github Search
