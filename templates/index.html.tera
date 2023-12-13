@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/missing.css/dist/missing.min.css" />
+    <title>Sites List</title>
+</head>
+<body>
+    <main>
+    <h1>Bunnylol</h1>
+
+    <div class="grid">
+        <form action="/add-site" method="post">
+            <fieldset>
+                <legend>Add Site</legend>
+                <div class="table row">
+                    <label for="key">Key:</label>
+                    <input type="text" id="key" name="key" style="width: 223px;">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" style="width: 223px;">
+                </div>
+                <div class="table row">
+                    <label for="url">URL:</label>
+                    <textarea id="url" name="url" rows="1" cols="60" style="resize: none;"></textarea>
+                </div>
+                <input type="submit" value="Add Site">
+            </fieldset>
+        </form>
+    </div>
+
+    {% if sites %}
+        {% for cmd, site in sites %}
+            <form action="/remove-site" method="post">
+                <fieldset>
+                    <legend>{{ site.name }}</legend>
+                    <div class="grid">
+                        <div data-cols="1"><samp>{{ cmd }}</samp></div>
+                        <div data-cols="2 4"><a href="{{ site.url }}">{{ site.url }}</a></div>
+                        <div data-cols="5" style="text-align: right;">
+                            <input type="hidden" name="key" value="{{ cmd }}">
+                            <button type="submit">X</button>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        {% endfor %}
+    {% else %}
+        <p>No sites available.</p>
+    {% endif %}
+    <main>
+</body>
+</html>

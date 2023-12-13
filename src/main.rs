@@ -1,7 +1,9 @@
 #[macro_use]
 extern crate rocket;
+extern crate rocket_dyn_templates;
 
-use rocket::response::content::RawHtml;
+use rocket_dyn_templates::{context, Template};
+
 use rocket::response::Redirect;
 
 use rocket::form::Form;
@@ -33,6 +35,10 @@ struct NewSiteData {
     name: String,
     url: String,
 }
+#[derive(FromForm)]
+struct SiteRemoval {
+    key: String,
+}
 
 fn load_config(file_path: &String) -> Result<SiteList, Box<dyn std::error::Error>> {
     // Read the file to a string
@@ -43,32 +49,12 @@ fn load_config(file_path: &String) -> Result<SiteList, Box<dyn std::error::Error
 }
 
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
-}
-
-// TODO: merge add-site form with list GET
-#[get("/add-site")]
-fn add_site_form() -> RawHtml<&'static str> {
-    RawHtml(
-        r#"
-        <html>
-            <head>
-                <meta name="color-scheme" content="light dark">
-            </head>
-            <body>
-                <form action="/add-site" method="post">
-                    <label for="key">Key:</label>
-                    <input type="text" id="key" name="key"><br><br>
-                    <label for="name">Name:</label>
-                    <input type="text" id="name" name="name"><br><br>
-                    <label for="url">URL:</label>
-                    <input type="text" id="url" name="url"><br><br>
-                    <input type="submit" value="Add Site">
-                </form>
-            </body>
-        </html>
-    "#,
+fn index(site_list: &State<SiteList>) -> Template {
+    Template::render(
+        "index",
+        context! {
+            sites: site_list.inner(),
+        },
     )
 }
 
@@ -77,7 +63,7 @@ async fn add_site(
     site_list: &State<SiteList>,
     config: &State<String>,
     new_site_data: Form<NewSiteData>,
-) -> String {
+) -> Redirect {
     let mut sites = site_list.0.lock().unwrap();
 
     // Create the inner HashMap for the new site
@@ -90,26 +76,21 @@ async fn add_site(
 
     let serialized_data = serde_yaml::to_string(&*sites).unwrap();
     let _ = fs::write(config.inner(), serialized_data);
-    "Added/Updated site".to_string()
+    Redirect::to("/")
 }
 
-// TODO: add remove form
-// TODO: move html to template
-// TODO: add deploy script and systemd configs
-#[get("/list")]
-fn list(site_list: &State<SiteList>) -> String {
-    let sites = site_list.0.lock().unwrap();
+#[post("/remove-site", data = "<site_removal>")]
+async fn remove_site(
+    site_list: &State<SiteList>,
+    config: &State<String>,
+    site_removal: Form<SiteRemoval>,
+) -> Redirect {
+    let mut sites = site_list.0.lock().unwrap();
+    sites.remove(&site_removal.key);
 
-    let mut result = String::new();
-
-    for (key, site) in sites.iter() {
-        result.push_str(&format!("Key: {}\n", key));
-        for (site_key, site_value) in site.iter() {
-            result.push_str(&format!("  {}: {}\n", site_key, site_value));
-        }
-    }
-
-    result
+    let serialized_data = serde_yaml::to_string(&*sites).unwrap();
+    let _ = fs::write(config.inner(), serialized_data);
+    Redirect::to("/")
 }
 
 fn split_first_word(s: &str) -> (&str, &str) {
@@ -121,6 +102,7 @@ fn split_first_word(s: &str) -> (&str, &str) {
     }
 }
 
+// TODO: add deploy script and systemd configs
 #[get("/search?<cmd>")]
 fn search(site_list: &State<SiteList>, cmd: String) -> Redirect {
     let (first_word, the_rest) = split_first_word(&cmd);
@@ -157,5 +139,6 @@ fn rocket() -> _ {
     rocket
         .manage(list)
         .manage(config_file)
-        .mount("/", routes![index, search, list, add_site, add_site_form])
+        .mount("/", routes![index, search, add_site, remove_site])
+        .attach(Template::fairing())
 }
